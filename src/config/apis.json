@@ -1,0 +1,26 @@
+{
+  "server": {
+    "port": 3001,
+    "apiKey": "sk-123"
+  },
+  "apis": [
+    {
+      "id": "api1",
+      "name": "OpenAI官方API",
+      "baseUrl": "https://api.openai.com",
+      "apiKey": "sk-your-openai-key-here",
+      "rpm": 60,
+      "rpd": 1000,
+      "enabled": true
+    },
+    {
+      "id": "api2", 
+      "name": "备用API端点",
+      "baseUrl": "https://your-backup-api.com",
+      "apiKey": "sk-your-backup-key-here",
+      "rpm": -1,
+      "rpd": 500,
+      "enabled": true
+    }
+  ]
+}
