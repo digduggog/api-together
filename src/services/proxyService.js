@@ -121,23 +121,56 @@ async function handleProxyRequest(req, res) {
       headers: { ...requestConfig.headers, Authorization: '[HIDDEN]' }
     }, null, 2));
     
-    const response = await axiosInstance(requestConfig);
+    let lastError = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const response = await axiosInstance(requestConfig);
 
-    // 返回响应
-    res.status(response.status);
-    
-    // 复制响应头（排除一些不需要的头）
-    const excludeHeaders = ['content-encoding', 'transfer-encoding', 'connection'];
-    Object.keys(response.headers).forEach(key => {
-      if (!excludeHeaders.includes(key.toLowerCase())) {
-        res.set(key, response.headers[key]);
+        if (response.status < 500) {
+          res.status(response.status);
+          const excludeHeaders = ['content-encoding', 'transfer-encoding', 'connection'];
+          Object.keys(response.headers).forEach(key => {
+            if (!excludeHeaders.includes(key.toLowerCase())) {
+              res.set(key, response.headers[key]);
+            }
+          });
+          res.json(response.data);
+          logger.info(`请求成功: ${req.method} ${requestPath} - ${response.status}`);
+          return;
+        }
+
+        lastError = { response };
+        logger.warn(`Attempt ${i + 1} failed with status ${response.status}. Retrying in 500ms...`);
+
+      } catch (error) {
+        lastError = error;
+        logger.warn(`Attempt ${i + 1} failed with network error. Retrying in 500ms...`);
       }
-    });
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
 
-    res.json(response.data);
+    logger.error('Proxy request failed after 3 retries:', lastError.message);
     
-    logger.info(`请求成功: ${req.method} ${requestPath} - ${response.status}`);
-
+    if (lastError.response) {
+      const { status, data } = lastError.response;
+      res.status(status).json(data);
+    } else if (lastError.request) {
+      res.status(502).json({
+        error: {
+          message: 'Upstream server connection failed',
+          type: 'bad_gateway',
+          code: 'network_error'
+        }
+      });
+    } else {
+      res.status(500).json({
+        error: {
+          message: lastError.message || 'Internal server error',
+          type: 'api_error',
+          code: 'internal_error'
+        }
+      });
+    }
   } catch (error) {
     logger.error('代理请求失败:', error.message);
     logger.error('错误堆栈:', error.stack);
