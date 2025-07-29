@@ -322,6 +322,33 @@ A: 在命令提示符窗口中按 `Ctrl + C`。
 
 MIT License
 
+## ⬆️ 更新教程
+
+如果从 v1.0.0 更新到 v1.1.0，请按照以下步骤操作：
+
+1. **备份旧的 `apis.json` 文件**：复制一份 `src/config/apis.json` 文件到其他安全位置。
+2. **下载最新代码**：使用 `git pull` 或重新下载项目文件。
+3. **更新 `apis.json` 配置**：
+   - 为 `apis` 数组中的每个 API 对象添加 `models` 字段。这是一个**必填**字段，用于指定该 API 支持的模型列表。
+   - （可选）为需要模型映射的 API 添加 `modelMapping` 字段。
+   - **示例**：
+     ```json
+     {
+       "id": "api1",
+       "name": "OpenAI官方API",
+       "baseUrl": "https://api.openai.com",
+       "apiKey": "sk-your-key",
+       "rpm": 60,
+       "rpd": 1000,
+       "enabled": true,
+       "models": ["gpt-3.5-turbo", "gpt-4"],
+       "modelMapping": {
+         "gpt-3.5": "gpt-3.5-turbo"
+       }
+     }
+     ```
+4. **重启服务**：运行 `npm start` 重新启动服务。
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！

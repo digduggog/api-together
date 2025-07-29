@@ -322,6 +322,33 @@ If you modified the configuration file, you need to restart the service:
 
 MIT License
 
+## ⬆️ Update Guide
+
+To update from v1.0.0 to v1.1.0, please follow these steps:
+
+1. **Back up your old `apis.json` file**: Make a copy of `src/config/apis.json` and save it to a safe location.
+2. **Download the latest code**: Use `git pull` or re-download the project files.
+3. **Update your `apis.json` configuration**:
+   - For each API object in the `apis` array, add a `models` field. This is a **required** field that specifies the list of models supported by the API.
+   - (Optional) Add a `modelMapping` field for APIs that require model mapping.
+   - **Example**:
+     ```json
+     {
+       "id": "api1",
+       "name": "OpenAI Official API",
+       "baseUrl": "https://api.openai.com",
+       "apiKey": "sk-your-key",
+       "rpm": 60,
+       "rpd": 1000,
+       "enabled": true,
+       "models": ["gpt-3.5-turbo", "gpt-4"],
+       "modelMapping": {
+         "gpt-3.5": "gpt-3.5-turbo"
+       }
+     }
+     ```
+4. **Restart the service**: Run `npm start` to restart the service.
+
 ## 🤝 Contributing
 
 Issues and Pull Requests are welcome!
