@@ -305,6 +305,12 @@ If you modified the configuration file, you need to restart the service:
 
 ## 📝 Changelog
 
+### v1.1.0
+- Added model routing feature to select APIs based on the requested model
+- Added model mapping feature to support aliases
+- Updated `apis.json` configuration format
+- Improved documentation and examples
+
 ### v1.0.0
 - Initial release
 - Support for multi-endpoint polling
