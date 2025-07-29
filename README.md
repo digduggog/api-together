@@ -8,6 +8,8 @@
 
 - ✅ **多端点轮询**: 支持配置多个 OpenAI 格式的 API 端点
 - ✅ **智能负载均衡**: 随机选择可用的 API 端点分散请求压力
+- ✅ **模型路由**: 根据请求的模型，自动选择支持该模型的 API 端点
+- ✅ **模型映射**: 支持将请求模型映射为特定 API 端点的模型名称
 - ✅ **请求限制**: 支持 RPM（每分钟请求数）和 RPD（每日请求数）限制
 - ✅ **自动重试**: 在上游 API 报错时自动重试，提高稳定性
 - ✅ **数据持久化**: RPD 和 RPM 记录会保存到本地，防止程序关闭后数据丢失
@@ -90,7 +92,11 @@
          "apiKey": "sk-your-real-openai-key-here",
          "rpm": 60,
          "rpd": 1000,
-         "enabled": true
+         "enabled": true,
+         "models": ["gpt-3.5-turbo", "gpt-4"],
+         "modelMapping": {
+           "gpt-3.5": "gpt-3.5-turbo"
+         }
        },
        {
          "id": "api2",
@@ -99,7 +105,8 @@
          "apiKey": "sk-your-backup-key-here",
          "rpm": -1,
          "rpd": 500,
-         "enabled": true
+         "enabled": true,
+         "models": ["claude-2", "claude-instant-1"]
        }
      ]
    }
@@ -111,6 +118,8 @@
    - `rpm`: 每分钟最大请求数（-1 表示无限制）
    - `rpd`: 每日最大请求数（-1 表示无限制）
    - `enabled`: 是否启用此 API（true/false）
+   - `models`: (必选) 支持的模型列表 (例如: `["gpt-3.5-turbo", "gpt-4"]`)
+   - `modelMapping`: (可选) 模型名称映射，将请求模型映射到目标模型 (例如: `{"gpt-3.5": "gpt-3.5-turbo"}` 表示当请求模型为 `gpt-3.5` 时，将使用 `gpt-3.5-turbo` 模型)
 
 ### 第四步：启动服务
 
@@ -296,6 +305,12 @@ A: 在命令提示符窗口中按 `Ctrl + C`。
 
 ## 📝 更新日志
 
+### v1.1.0
+- 新增模型路由功能，根据请求模型选择API
+- 新增模型映射功能，支持别名
+- 更新配置文件 `apis.json` 格式
+- 完善文档和示例
+
 ### v1.0.0
 - 初始版本发布
 - 支持多端点轮询
@@ -306,6 +321,33 @@ A: 在命令提示符窗口中按 `Ctrl + C`。
 ## 📄 许可证
 
 MIT License
+
+## ⬆️ 更新教程
+
+如果从 v1.0.0 更新到 v1.1.0，请按照以下步骤操作：
+
+1. **备份旧的 `apis.json` 文件**：复制一份 `src/config/apis.json` 文件到其他安全位置。
+2. **下载最新代码**：使用 `git pull` 或重新下载项目文件。
+3. **更新 `apis.json` 配置**：
+   - 为 `apis` 数组中的每个 API 对象添加 `models` 字段。这是一个**必填**字段，用于指定该 API 支持的模型列表。
+   - （可选）为需要模型映射的 API 添加 `modelMapping` 字段。
+   - **示例**：
+     ```json
+     {
+       "id": "api1",
+       "name": "OpenAI官方API",
+       "baseUrl": "https://api.openai.com",
+       "apiKey": "sk-your-key",
+       "rpm": 60,
+       "rpd": 1000,
+       "enabled": true,
+       "models": ["gpt-3.5-turbo", "gpt-4"],
+       "modelMapping": {
+         "gpt-3.5": "gpt-3.5-turbo"
+       }
+     }
+     ```
+4. **重启服务**：运行 `npm start` 重新启动服务。
 
 ## 🤝 贡献
 

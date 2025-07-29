@@ -48,7 +48,7 @@ class ApiManager {
   }
 
   // 获取所有可用的API
-  getAvailableApis() {
+  getAvailableApis(modelName) {
     try {
       if (!this.config || !this.config.apis || !Array.isArray(this.config.apis)) {
         logger.error('配置文件中没有有效的APIs数组');
@@ -80,6 +80,19 @@ class ApiManager {
           return false;
         }
 
+        // 如果提供了modelName，则检查该API是否支持该模型
+        if (modelName) {
+          const supportedModels = api.models || [];
+          const modelMapping = api.modelMapping || {};
+
+          // 检查模型是否直接在支持列表，或者是否在映射中
+          if (!supportedModels.includes(modelName) && !modelMapping[modelName]) {
+            logger.debug(`API ${api.name} 不支持模型 ${modelName}`);
+            return false;
+          }
+        }
+
+
         return true;
       });
     } catch (error) {
@@ -89,9 +102,9 @@ class ApiManager {
   }
 
   // 随机选择一个可用的API
-  selectRandomApi() {
+  selectRandomApi(modelName) {
     try {
-      const availableApis = this.getAvailableApis();
+      const availableApis = this.getAvailableApis(modelName);
       
       if (!availableApis || availableApis.length === 0) {
         logger.error('没有可用的API端点');

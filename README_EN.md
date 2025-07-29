@@ -8,6 +8,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
 
 - ✅ **Multi-endpoint Polling**: Support for configuring multiple OpenAI-format API endpoints
 - ✅ **Smart Load Balancing**: Randomly select available API endpoints to distribute request load
+- ✅ **Model Routing**: Automatically select API endpoints that support the requested model
+- ✅ **Model Mapping**: Support for mapping request models to specific API endpoint model names
 - ✅ **Request Limiting**: Support for RPM (Requests Per Minute) and RPD (Requests Per Day) limits
 - ✅ **Automatic Retries**: Automatically retries when the upstream API fails, improving stability
 - ✅ **Data Persistence**: RPD and RPM records are saved locally to prevent data loss after program shutdown
@@ -90,7 +92,11 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
          "apiKey": "sk-your-real-openai-key-here",
          "rpm": 60,
          "rpd": 1000,
-         "enabled": true
+         "enabled": true,
+         "models": ["gpt-3.5-turbo", "gpt-4"],
+         "modelMapping": {
+           "gpt-3.5": "gpt-3.5-turbo"
+         }
        },
        {
          "id": "api2",
@@ -99,7 +105,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
          "apiKey": "sk-your-backup-key-here",
          "rpm": -1,
          "rpd": 500,
-         "enabled": true
+         "enabled": true,
+         "models": ["claude-2", "claude-instant-1"]
        }
      ]
    }
@@ -111,6 +118,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
    - `rpm`: Maximum requests per minute (-1 means unlimited)
    - `rpd`: Maximum requests per day (-1 means unlimited)
    - `enabled`: Whether to enable this API (true/false)
+   - `models`: (Required) List of supported models (e.g., `["gpt-3.5-turbo", "gpt-4"]`)
+   - `modelMapping`: (Optional) Model name mapping, to map a requested model to a target model (e.g., `{"gpt-3.5": "gpt-3.5-turbo"}` means that when `gpt-3.5` is requested, the `gpt-3.5-turbo` model will be used)
 
 ### Step 4: Start Service
 
@@ -296,6 +305,12 @@ If you modified the configuration file, you need to restart the service:
 
 ## 📝 Changelog
 
+### v1.1.0
+- Added model routing feature to select APIs based on the requested model
+- Added model mapping feature to support aliases
+- Updated `apis.json` configuration format
+- Improved documentation and examples
+
 ### v1.0.0
 - Initial release
 - Support for multi-endpoint polling
@@ -306,6 +321,33 @@ If you modified the configuration file, you need to restart the service:
 ## 📄 License
 
 MIT License
+
+## ⬆️ Update Guide
+
+To update from v1.0.0 to v1.1.0, please follow these steps:
+
+1. **Back up your old `apis.json` file**: Make a copy of `src/config/apis.json` and save it to a safe location.
+2. **Download the latest code**: Use `git pull` or re-download the project files.
+3. **Update your `apis.json` configuration**:
+   - For each API object in the `apis` array, add a `models` field. This is a **required** field that specifies the list of models supported by the API.
+   - (Optional) Add a `modelMapping` field for APIs that require model mapping.
+   - **Example**:
+     ```json
+     {
+       "id": "api1",
+       "name": "OpenAI Official API",
+       "baseUrl": "https://api.openai.com",
+       "apiKey": "sk-your-key",
+       "rpm": 60,
+       "rpd": 1000,
+       "enabled": true,
+       "models": ["gpt-3.5-turbo", "gpt-4"],
+       "modelMapping": {
+         "gpt-3.5": "gpt-3.5-turbo"
+       }
+     }
+     ```
+4. **Restart the service**: Run `npm start` to restart the service.
 
 ## 🤝 Contributing
 

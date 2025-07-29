@@ -48,8 +48,11 @@ router.get('/models/:model', handleProxyRequest);
 // 通用代理请求处理函数
 async function handleProxyRequest(req, res) {
   try {
+    // 从请求中获取模型名称
+    const modelName = req.body?.model;
+
     // 选择一个可用的API
-    const selectedApi = apiManager.selectRandomApi();
+    const selectedApi = apiManager.selectRandomApi(modelName);
     
     if (!selectedApi || typeof selectedApi !== 'object') {
       logger.error('无法选择有效的API端点');
@@ -60,6 +63,13 @@ async function handleProxyRequest(req, res) {
           code: 'no_available_api'
         }
       });
+    }
+
+    // 如果存在模型映射，则更新模型名称
+    if (modelName && selectedApi.modelMapping && selectedApi.modelMapping[modelName]) {
+      const originalModel = modelName;
+      req.body.model = selectedApi.modelMapping[modelName];
+      logger.info(`模型映射: ${originalModel} -> ${req.body.model}`);
     }
 
     // 验证选中的API配置
