@@ -1,8 +1,15 @@
 const cron = require('node-cron');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
 
-// 存储每个API的请求计数
-const requestCounts = new Map();
+const dataFilePath = path.join(__dirname, '..', 'data', 'rateLimitData.json');
+let requestCounts = new Map();
+
+// 确保数据目录存在
+if (!fs.existsSync(path.dirname(dataFilePath))) {
+  fs.mkdirSync(path.dirname(dataFilePath), { recursive: true });
+}
 
 // 初始化API计数器
 function initializeCounter(apiId) {
@@ -52,6 +59,32 @@ function checkRateLimit(api) {
   return true;
 }
 
+// 保存计数器到文件
+function saveCountersToFile() {
+  try {
+    const data = JSON.stringify(Array.from(requestCounts.entries()));
+    fs.writeFileSync(dataFilePath, data, 'utf8');
+  } catch (error) {
+    logger.error('无法保存速率限制数据:', error);
+  }
+}
+
+// 从文件加载计数器
+function loadCountersFromFile() {
+  try {
+    if (fs.existsSync(dataFilePath)) {
+      const data = fs.readFileSync(dataFilePath, 'utf8');
+      if (data) {
+        const parsedData = JSON.parse(data);
+        requestCounts = new Map(parsedData);
+        logger.info('速率限制数据已加载');
+      }
+    }
+  } catch (error) {
+    logger.error('无法加载速率限制数据:', error);
+  }
+}
+
 // 增加请求计数
 function incrementCounter(apiId) {
   initializeCounter(apiId);
@@ -60,6 +93,7 @@ function incrementCounter(apiId) {
   counter.rpd++;
   
   logger.info(`API ${apiId} 请求计数 - RPM: ${counter.rpm}, RPD: ${counter.rpd}`);
+  saveCountersToFile();
 }
 
 // 获取API状态
@@ -102,6 +136,9 @@ cron.schedule('0 0 * * *', () => {
   
   logger.info('每日请求计数器已重置');
 });
+
+// 在启动时加载数据
+loadCountersFromFile();
 
 module.exports = {
   checkRateLimit,
