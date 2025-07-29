@@ -8,6 +8,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
 
 - ✅ **Multi-endpoint Polling**: Support for configuring multiple OpenAI-format API endpoints
 - ✅ **Smart Load Balancing**: Randomly select available API endpoints to distribute request load
+- ✅ **Model Routing**: Automatically select API endpoints that support the requested model
+- ✅ **Model Mapping**: Support for mapping request models to specific API endpoint model names
 - ✅ **Request Limiting**: Support for RPM (Requests Per Minute) and RPD (Requests Per Day) limits
 - ✅ **Automatic Retries**: Automatically retries when the upstream API fails, improving stability
 - ✅ **Data Persistence**: RPD and RPM records are saved locally to prevent data loss after program shutdown
@@ -90,7 +92,11 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
          "apiKey": "sk-your-real-openai-key-here",
          "rpm": 60,
          "rpd": 1000,
-         "enabled": true
+         "enabled": true,
+         "models": ["gpt-3.5-turbo", "gpt-4"],
+         "modelMapping": {
+           "gpt-3.5": "gpt-3.5-turbo"
+         }
        },
        {
          "id": "api2",
@@ -99,7 +105,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
          "apiKey": "sk-your-backup-key-here",
          "rpm": -1,
          "rpd": 500,
-         "enabled": true
+         "enabled": true,
+         "models": ["claude-2", "claude-instant-1"]
        }
      ]
    }
@@ -111,6 +118,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
    - `rpm`: Maximum requests per minute (-1 means unlimited)
    - `rpd`: Maximum requests per day (-1 means unlimited)
    - `enabled`: Whether to enable this API (true/false)
+   - `models`: (Required) List of supported models (e.g., `["gpt-3.5-turbo", "gpt-4"]`)
+   - `modelMapping`: (Optional) Model name mapping, to map a requested model to a target model (e.g., `{"gpt-3.5": "gpt-3.5-turbo"}` means that when `gpt-3.5` is requested, the `gpt-3.5-turbo` model will be used)
 
 ### Step 4: Start Service
 
