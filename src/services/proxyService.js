@@ -136,7 +136,7 @@ async function handleProxyRequest(req, res) {
       try {
         const response = await axiosInstance(requestConfig);
 
-        if (response.status < 500) {
+        if (response.status === 200) {
           res.status(response.status);
           const excludeHeaders = ['content-encoding', 'transfer-encoding', 'connection'];
           Object.keys(response.headers).forEach(key => {
