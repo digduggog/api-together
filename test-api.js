@@ -18,7 +18,7 @@ async function testApi() {
     
     // 测试聊天完成
     const chatResponse = await axios.post('http://localhost:3001/v1/chat/completions', {
-      model: 'gemini-2.5-pro',
+      model: 'gpt-3.5-turbo',
       messages: [
         {
           role: 'user',

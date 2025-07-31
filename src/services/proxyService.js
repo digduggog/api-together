@@ -45,16 +45,42 @@ router.post('/moderations', handleProxyRequest);
 router.get('/models', handleProxyRequest);
 router.get('/models/:model', handleProxyRequest);
 
+// Helper function to check for empty response
+const isResponseEmpty = (response) => {
+  if (response.status !== 200) {
+    return false;
+  }
+  const contentLength = response.headers['content-length'];
+  if (contentLength && parseInt(contentLength, 10) === 0) {
+    return true;
+  }
+  const data = response.data;
+  if (data === null || data === undefined) {
+    return true;
+  }
+  if (typeof data === 'object' && Object.keys(data).length === 0) {
+    return true;
+  }
+  if (Array.isArray(data) && data.length === 0) {
+    return true;
+  }
+  if (typeof data === 'string' && data.trim() === '') {
+    return true;
+  }
+  return false;
+};
+
 // 通用代理请求处理函数
 async function handleProxyRequest(req, res) {
   try {
-    // 从请求中获取模型名称
     const modelName = req.body?.model;
+    let lastError = null;
+    const usedApiIds = new Set();
+    const maxRetries = 3;
 
-    // 选择一个可用的API
-    const selectedApi = apiManager.selectRandomApi(modelName);
-    
-    if (!selectedApi || typeof selectedApi !== 'object') {
+    // Initial check for any available APIs
+    const initialApis = apiManager.getAvailableApis(modelName);
+    if (!initialApis || initialApis.length === 0) {
       logger.error('无法选择有效的API端点');
       return res.status(503).json({
         error: {
@@ -65,78 +91,63 @@ async function handleProxyRequest(req, res) {
       });
     }
 
-    // 如果存在模型映射，则更新模型名称
-    if (modelName && selectedApi.modelMapping && selectedApi.modelMapping[modelName]) {
-      const originalModel = modelName;
-      req.body.model = selectedApi.modelMapping[modelName];
-      logger.info(`模型映射: ${originalModel} -> ${req.body.model}`);
-    }
+    for (let i = 0; i < maxRetries; i++) {
+      const availableApis = apiManager.getAvailableApis(modelName).filter(api => !usedApiIds.has(api.id));
 
-    // 验证选中的API配置
-    if (!selectedApi.baseUrl || !selectedApi.apiKey) {
-      logger.error('选中的API配置不完整:', selectedApi);
-      return res.status(500).json({
-        error: {
-          message: 'API配置错误',
-          type: 'api_error',
-          code: 'invalid_config'
-        }
-      });
-    }
-
-    // 记录API使用
-    apiManager.recordApiUsage(selectedApi.id);
-
-    // 创建axios实例
-    const axiosInstance = createAxiosInstance(selectedApi);
-
-    // 构建请求路径
-    let requestPath = req.path;
-    
-    // 确保路径正确构建
-    if (requestPath.startsWith('/')) {
-      requestPath = requestPath.substring(1); // 移除开头的斜杠
-    }
-    
-    // 如果baseUrl不包含/v1，则添加v1前缀
-    if (!selectedApi.baseUrl.includes('/v1')) {
-      requestPath = 'v1/' + requestPath;
-    }
-    
-    logger.info(`代理请求: ${req.method} ${requestPath} -> ${selectedApi.name} (${selectedApi.baseUrl})`);
-    logger.info(`完整URL: ${selectedApi.baseUrl}/${requestPath}`);
-
-    // 准备请求头
-    const requestHeaders = {
-      'Authorization': `Bearer ${selectedApi.apiKey}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'OpenAI-API-Proxy/1.0'
-    };
-
-    // 发送请求到选中的API
-    const requestConfig = {
-      method: req.method,
-      url: requestPath,
-      data: req.body,
-      params: req.query,
-      headers: requestHeaders,
-      timeout: 60000,
-      validateStatus: function (status) {
-        return status < 600; // 接受所有小于600的状态码
+      if (availableApis.length === 0) {
+        logger.warn('No more available APIs to try.');
+        break;
       }
-    };
 
-    logger.debug('请求配置:', JSON.stringify({
-      ...requestConfig,
-      headers: { ...requestConfig.headers, Authorization: '[HIDDEN]' }
-    }, null, 2));
-    
-    let lastError = null;
-    for (let i = 0; i < 3; i++) {
+      const randomIndex = Math.floor(Math.random() * availableApis.length);
+      const selectedApi = availableApis[randomIndex];
+      usedApiIds.add(selectedApi.id);
+
       try {
+        let requestBody = { ...req.body };
+        if (modelName && selectedApi.modelMapping && selectedApi.modelMapping[modelName]) {
+          const originalModel = modelName;
+          requestBody.model = selectedApi.modelMapping[modelName];
+          logger.info(`Attempt ${i + 1}: Model mapping for ${selectedApi.name}: ${originalModel} -> ${requestBody.model}`);
+        }
+
+        if (!selectedApi.baseUrl || !selectedApi.apiKey) {
+          logger.error(`Attempt ${i + 1}: API config for ${selectedApi.name} is incomplete.`);
+          lastError = new Error(`API config for ${selectedApi.name} is incomplete.`);
+          continue;
+        }
+
+        apiManager.recordApiUsage(selectedApi.id);
+        const axiosInstance = createAxiosInstance(selectedApi);
+
+        let requestPath = req.path;
+        if (requestPath.startsWith('/')) {
+          requestPath = requestPath.substring(1);
+        }
+        if (!selectedApi.baseUrl.includes('/v1')) {
+          requestPath = 'v1/' + requestPath;
+        }
+
+        logger.info(`Attempt ${i + 1}/${maxRetries}: Proxying to ${selectedApi.name} (${selectedApi.baseUrl})`);
+
+        const requestConfig = {
+          method: req.method,
+          url: requestPath,
+          data: requestBody,
+          params: req.query,
+          headers: {
+            'Authorization': `Bearer ${selectedApi.apiKey}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'OpenAI-API-Proxy/1.0'
+          },
+          timeout: 60000,
+          validateStatus: (status) => status < 600,
+        };
+
         const response = await axiosInstance(requestConfig);
 
-        if (response.status < 500) {
+        if (response.status < 400 && !isResponseEmpty(response)) {
+          logger.info(`Request successful with ${selectedApi.name}: ${response.status}`);
           res.status(response.status);
           const excludeHeaders = ['content-encoding', 'transfer-encoding', 'connection'];
           Object.keys(response.headers).forEach(key => {
@@ -145,26 +156,36 @@ async function handleProxyRequest(req, res) {
             }
           });
           res.json(response.data);
-          logger.info(`请求成功: ${req.method} ${requestPath} - ${response.status}`);
           return;
         }
 
-        lastError = { response };
-        logger.warn(`Attempt ${i + 1} failed with status ${response.status}. Retrying in 500ms...`);
-
+        if (isResponseEmpty(response)) {
+          lastError = { message: `Empty response from ${selectedApi.name} (status ${response.status})` };
+          logger.warn(`Attempt ${i + 1} failed: ${lastError.message}. Retrying...`);
+        } else if (response.status >= 500) {
+          lastError = { response };
+          logger.warn(`Attempt ${i + 1} failed: ${selectedApi.name} returned status ${response.status}. Retrying...`);
+        } else {
+          logger.error(`Request failed with client-side error from ${selectedApi.name}: ${response.status}. Not retrying.`);
+          res.status(response.status).json(response.data);
+          return;
+        }
       } catch (error) {
         lastError = error;
-        logger.warn(`Attempt ${i + 1} failed with network error. Retrying in 500ms...`);
+        logger.warn(`Attempt ${i + 1} with ${selectedApi.name} failed with network error: ${error.message}. Retrying...`);
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
-    logger.error('Proxy request failed after 3 retries:', lastError.message);
-    
-    if (lastError.response) {
+    logger.error('Proxy request failed after all retries.', lastError?.message || 'Unknown error');
+
+    if (lastError?.response) {
       const { status, data } = lastError.response;
       res.status(status).json(data);
-    } else if (lastError.request) {
+    } else if (lastError?.request) {
       res.status(502).json({
         error: {
           message: 'Upstream server connection failed',
@@ -175,7 +196,7 @@ async function handleProxyRequest(req, res) {
     } else {
       res.status(500).json({
         error: {
-          message: lastError.message || 'Internal server error',
+          message: lastError?.message || 'Internal server error',
           type: 'api_error',
           code: 'internal_error'
         }
@@ -186,7 +207,6 @@ async function handleProxyRequest(req, res) {
     logger.error('错误堆栈:', error.stack);
 
     if (error.response) {
-      // API返回了错误响应
       const status = error.response.status;
       const errorData = error.response.data;
       
@@ -194,7 +214,6 @@ async function handleProxyRequest(req, res) {
       
       res.status(status).json(errorData);
     } else if (error.request) {
-      // 请求发送失败（网络错误等）
       logger.error('网络请求失败:', error.message);
       
       res.status(502).json({
@@ -205,7 +224,6 @@ async function handleProxyRequest(req, res) {
         }
       });
     } else {
-      // 其他错误，包括代码逻辑错误
       logger.error('未知错误:', error.message);
       logger.error('错误详情:', error);
       
