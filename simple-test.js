@@ -5,7 +5,7 @@ async function simpleTest() {
     console.log('开始测试API...');
     
     const response = await axios.post('http://localhost:3001/v1/chat/completions', {
-      model: 'gemini-2.5-pro',
+      model: 'gpt-3.5-turbo',
       messages: [
         {
           role: 'user',
