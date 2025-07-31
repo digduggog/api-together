@@ -146,6 +146,8 @@ async function handleProxyRequest(req, res) {
 
         const response = await axiosInstance(requestConfig);
 
+        const shouldRetry = response.status >= 400;
+
         if (response.status < 400 && !isResponseEmpty(response)) {
           logger.info(`Request successful with ${selectedApi.name}: ${response.status}`);
           res.status(response.status);
@@ -162,11 +164,11 @@ async function handleProxyRequest(req, res) {
         if (isResponseEmpty(response)) {
           lastError = { message: `Empty response from ${selectedApi.name} (status ${response.status})` };
           logger.warn(`Attempt ${i + 1} failed: ${lastError.message}. Retrying...`);
-        } else if (response.status >= 500) {
+        } else if (shouldRetry) {
           lastError = { response };
           logger.warn(`Attempt ${i + 1} failed: ${selectedApi.name} returned status ${response.status}. Retrying...`);
         } else {
-          logger.error(`Request failed with client-side error from ${selectedApi.name}: ${response.status}. Not retrying.`);
+          logger.error(`Request failed with non-retryable status from ${selectedApi.name}: ${response.status}. Not retrying.`);
           res.status(response.status).json(response.data);
           return;
         }
