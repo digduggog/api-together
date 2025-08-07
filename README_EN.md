@@ -13,6 +13,8 @@ A powerful OpenAI-format API proxy service that supports multi-endpoint load bal
 - ✅ **Request Limiting**: Support for RPM (Requests Per Minute) and RPD (Requests Per Day) limits
 - ✅ **Automatic Retries**: Automatically retries when the upstream API fails, improving stability
 - ✅ **Data Persistence**: RPD and RPM records are saved locally to prevent data loss after program shutdown
+- ✅ **Stream Token Stats**: Supports token usage statistics for streaming requests, making data collection more complete
+- ✅ **Configuration Hot Reload**: Automatically apply configuration changes without restarting the service
 - ✅ **Configuration Management**: Easy management of all API configurations through JSON files
 - ✅ **Key Authentication**: Unified API key authentication mechanism
 - ✅ **Real-time Monitoring**: Provides API status query and health check endpoints

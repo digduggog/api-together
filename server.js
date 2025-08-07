@@ -1,6 +1,7 @@
 const app = require('./src/app');
 const apiManager = require('./src/services/apiManager');
 const logger = require('./src/utils/logger');
+const hotReloader = require('./src/utils/hotReloader');
 
 // 获取服务器配置
 const serverConfig = apiManager.getServerConfig();
@@ -24,11 +25,17 @@ const server = app.listen(PORT, () => {
   } else {
     logger.warn('⚠️  当前没有可用的API端点，请检查配置文件');
   }
+  
+  // 启动配置文件热重载
+  hotReloader.start();
+  logger.info(`🔄 配置文件热重载已启动`);
 });
 
 // 优雅关闭
 process.on('SIGTERM', () => {
   logger.info('收到SIGTERM信号，正在关闭服务器...');
+  // 停止热重载
+  hotReloader.stop();
   server.close(() => {
     logger.info('服务器已关闭');
     process.exit(0);
@@ -37,6 +44,8 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('收到SIGINT信号，正在关闭服务器...');
+  // 停止热重载
+  hotReloader.stop();
   server.close(() => {
     logger.info('服务器已关闭');
     process.exit(0);
